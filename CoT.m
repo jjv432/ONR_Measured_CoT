@@ -4,126 +4,111 @@ format compact
 
 %% Power and COT
 
+%{
+    Jack Vranicar
+    7/8/24
+    jjv20@fsu.edu
+
+    This script calculates cost of transport for a trajectory ran on the
+    CISCOR boom.
+    
+    Inputs: you must run the 'loadTrajectory' and 'runTrajectory' functions
+    written by J. Boyland to populate the values this code needs.  These
+    functions run a trajectory on the CISCOR boom and record various motor
+    parameters.
+
+    Outputs: This script outputs: electrical power, mechanical power, and
+    cost of transport.
+
+%}
+
 %% Power From I*V
 
-%*** Doesnt seem right!!!!!!!!********************************************
-
-%Rough power estimate.  May not be high fidelity
-
+% This loop creates arrays for the electrical current and voltage measured
+% across motors 1 and 2
 for i = 1:length(boom.Motors.Recorder.Data)
-
     
     [current_1(i), current_2(i)] = boom.Motors.Recorder.Data(i).infos.iq_measured;
     [voltage_1(i), voltage_2(i)] = boom.Motors.Recorder.Data(i).infos.bus_voltage;
 
-
 end
 
-Power_1 = current_1 .* voltage_1;
-Power_2 = current_2 .*voltage_2;
+%P = I*V
+Power_1_electrical = current_1 .* voltage_1;
+Power_2_electrical = current_2 .*voltage_2;
 
-% Power_1(Power_1<0) = 0;
-% Power_2(Power_2<0) = 0;
+%Ignoring negative power.  This is because if the power is negative, that
+%means that the other motor is powering it.  If negative values were
+%included in a sum (P1 + P2), the fact that one motor is driving another
+%would be ignored.
+Power_1_electrical(Power_1_electrical<0) = 0;
+Power_2_electrical(Power_2_electrical<0) = 0;
 
 
 %% Power From Torque
+%Unfinished.  Unclear if there is a phase shift for mechanical power
 
-Power_1_A = motor_data.motor_vel(:,1) .* motor_data.motor_trq(:,1);
-Power_2_A = motor_data.motor_vel(:,2) .* motor_data.motor_trq(:,2);
+%P = tau * omega.  These are the 'commanded' torque and measured omega
+%values for each of the motors.
+Power_1_mechanical = motor_data.motor_vel(:,1) .* motor_data.motor_trq(:,1);
+Power_2_mechanical = motor_data.motor_vel(:,2) .* motor_data.motor_trq(:,2);
 
-%delta_P_1 = Power_1 - Power_1_A';
+%Mechanical losses due to heat and friction
+mechanical_loss_1 = Power_1_electrical - Power_1_mechanical;
+mechanical_loss_2 = Power_2_electrical - Power_2_mechanical;
 
-% figure()
-%     plot(1:length(delta_P_1), delta_P_1)
+figure()
+    plot(1:length(mechanical_loss_1), mechanical_loss_1)
+    hold on
+    plot(1:length(mechanical_loss_2), mechanical_loss_2)
+    hold off
+    xlabel('Time')
+    ylabel("Mechanical Loss (W)")
+    title("Mechanical Losses in Motors 1 and 2")
+    legend("Motor 1", "Motor 2")
 
 %% Average Velocity
 
-orientation = boom_data.orientation; %Degrees??
+%Orientation is in pulses!
+orientation = boom_data.orientation; 
 time = boom_data.time;
 
-% Pulse_per_Rev = 4096;
-% Output_Teeth = 198;
-% Input_Teeth = 20;
-% 
-% Angular_Orientation = orientation / (360/(Pulse_per_Rev * 4 * Output_Teeth / Input_Teeth));
+%This is a (sloppy) fix for the python code used to interpret the encoder
+%pulses.  The python code has 160,000 pulses per revolution (PPR), which is
+%incorrect. python_PPR is the wrong value, actual_PPR is the correct value.
 
-corrected_orientation = orientation * 160000/162201.6;
+python_PPR = 160000; %This is the eroneous value in the python code.
 
-Angular_Orientation = 360 * corrected_orientation;
+encoder_PPR = 4096; %Rated PPR of the encoder
+quadrature_factor = 4;
+gear_ratio = 198/20; %teeth/teeth
+actual_PPR = encoder_PPR * quadrature_factor * gear_ratio;
+
+corrected_orientation = orientation * python_PPR/actual_PPR;
+
+Angular_Orientation = 360 * corrected_orientation; %[degrees]
 
 %% Calculating V
 
+normalized_time = time - time(1);
 
-fig = figure;
-        plot((time - time(1)), Angular_Orientation);
-        title('Sliding Plot')
-        xlabel('time')
-        ylabel('theta')
-    
-    datacursormode on
-    dcm_obj = datacursormode(fig);
-    
-    % Wait while the user to click
-    fprintf('Select one point, then shift click for a second point further down, then press "Enter"')
-    pause
-    
-    % Export cursor to workspace
-    info_struct = getCursorInfo(dcm_obj);
-    [~, doubleTrials] = size(info_struct);
-    
-    %Storing a list of all of the frame numbers
-    Frames = [];
-    for i = 1:doubleTrials
+Angular_Velocity = user_input_velocity(normalized_time, Angular_Orientation);
 
-        Frames = [Frames; info_struct(i).DataIndex];
-
-    end
-    
-    %Putting variables in the order of trials 
-    Frames = sort(Frames, 1);
+boom_radius = 1.14; %[m]
+linear_velocity = Angular_Velocity * boom_radius;
 
 
-user_Beginning = Frames(1);
-user_End = Frames(end);
+%% Cost of Transport
+%Not finished!! need cost as a single value
 
-v = 1.14 * (orientation(user_End) - orientation(user_Beginning))/(time(user_End) - time(user_Beginning));
+%Calculating cost of transport using: COT = P/(m*g*v)
 
+mass_total = 1.7982; %mass in kg of the hip and foot assembly.
+g = 9.81; %[m/s/s]
 
+Power_total_electrical = Power_1_electrical + Power_2_electrical;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-%% CoT
-
-%using eqn from Ash paper
-
-M  = 10; %%%%Mass of the whole hip
-m_l = 1; %%%%Mass of just the leg
-g = 9.81;
-
-Power_tot = Power_1 + Power_2;
-
-Cost = Power_tot/((M + m_l)*g*abs(v));
+Cost = Power_total_electrical/((mass_total)*g*abs(v));
 
 figure()
     plot(Cost)
