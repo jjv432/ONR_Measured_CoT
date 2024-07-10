@@ -66,4 +66,3 @@ Power_total_electrical = Power_1_electrical + Power_2_electrical;
 Cost = mean(Power_total_electrical)/((mass_total)*g*abs(linear_velocity));
 
 fprintf("The cost is %f \n\n", Cost)
-    
