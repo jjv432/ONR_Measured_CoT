@@ -37,6 +37,8 @@ fig = figure;
 user_Beginning = Frames(1);
 user_End = Frames(end);
 
-angular_velocity = (Angular_Orientation(user_End) - Angular_Orientation(user_Beginning))/(normalized_time(user_End) - normalized_time(user_Beginning));
+%Because angular orientation is in degrees, converting so that angular
+%velocity is rad/s
+angular_velocity = (pi/180)*(Angular_Orientation(user_End) - Angular_Orientation(user_Beginning))/(normalized_time(user_End) - normalized_time(user_Beginning));
 
 end
