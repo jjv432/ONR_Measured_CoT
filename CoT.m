@@ -26,12 +26,20 @@ format compact
 
 % This loop creates arrays for the electrical current and voltage measured
 % across motors 1 and 2
-for i = 1:length(boom.Motors.Recorder.Data)
-    
-    [current_1(i), current_2(i)] = boom.Motors.Recorder.Data(i).infos.iq_measured;
-    [voltage_1(i), voltage_2(i)] = boom.Motors.Recorder.Data(i).infos.bus_voltage;
+% for i = 1:length(boom.Motors.Recorder.Data)
+% 
+% 
+% 
+%     % [current_1(i), current_2(i)] = boom.Motors.Recorder.Data(i).infos.iq_measured;
+%     % [voltage_1(i), voltage_2(i)] = boom.Motors.Recorder.Data(i).infos.bus_voltage;
+% 
+% end
 
-end
+current_1 = motor_data.bus_current(:,1);
+    current_2 = motor_data.bus_current(:,2);
+
+    voltage_1 = motor_data.bus_voltage(:,1);
+    voltage_2 = motor_data.bus_voltage(:,2);
 
 %P = I*V
 Power_1_electrical = current_1 .* voltage_1;
@@ -53,25 +61,27 @@ Power_2_electrical(Power_2_electrical<0) = 0;
 Power_1_mechanical = motor_data.motor_vel(:,1) .* motor_data.motor_trq(:,1);
 Power_2_mechanical = motor_data.motor_vel(:,2) .* motor_data.motor_trq(:,2);
 
+Power_1_mechanical(Power_1_mechanical<0) = 0;
+Power_2_mechanical(Power_2_mechanical<0) = 0;
 %Mechanical losses due to heat and friction
-mechanical_loss_1 = Power_1_electrical - Power_1_mechanical;
-mechanical_loss_2 = Power_2_electrical - Power_2_mechanical;
+mechanical_loss_1 = Power_1_electrical - Power_1_mechanical';
+mechanical_loss_2 = Power_2_electrical - Power_2_mechanical';
 
-figure()
-    plot(1:length(mechanical_loss_1), mechanical_loss_1)
-    hold on
-    plot(1:length(mechanical_loss_2), mechanical_loss_2)
-    hold off
-    xlabel('Time')
-    ylabel("Mechanical Loss (W)")
-    title("Mechanical Losses in Motors 1 and 2")
-    legend("Motor 1", "Motor 2")
+% figure()
+%     plot(1:length(mechanical_loss_1), mechanical_loss_1')
+%     hold on
+%     plot(1:length(mechanical_loss_2), mechanical_loss_2')
+%     hold off
+%     xlabel('Time')
+%     ylabel("Mechanical Loss (W)")
+%     title("Mechanical Losses in Motors 1 and 2")
+%     legend("Motor 1", "Motor 2")
 
 %% Average Velocity
 
 %Orientation is in pulses!
 orientation = boom_data.orientation; 
-time = boom_data.time;
+user_time = boom_data.time;
 
 %This is a (sloppy) fix for the python code used to interpret the encoder
 %pulses.  The python code has 160,000 pulses per revolution (PPR), which is
@@ -90,12 +100,12 @@ Angular_Orientation = 360 * corrected_orientation; %[degrees]
 
 %% Calculating V
 
-normalized_time = time - time(1);
+normalized_time = user_time - user_time(1);
 
 Angular_Velocity = user_input_velocity(normalized_time, Angular_Orientation);
 
 boom_radius = 1.14; %[m]
-linear_velocity = Angular_Velocity * boom_radius;
+linear_velocity = Angular_Velocity * boom_radius * pi/180;
 
 
 %% Cost of Transport
@@ -107,8 +117,9 @@ mass_total = 1.7982; %mass in kg of the hip and foot assembly.
 g = 9.81; %[m/s/s]
 
 Power_total_electrical = Power_1_electrical + Power_2_electrical;
+Power_total_mechanical = Power_1_mechanical + Power_2_mechanical;
 
-Cost = Power_total_electrical/((mass_total)*g*abs(v));
+Cost = mean(Power_total_electrical)/((mass_total)*g*abs(linear_velocity));
 
-figure()
-    plot(Cost)
+fprintf("The cost is %f \n\n", Cost)
+    

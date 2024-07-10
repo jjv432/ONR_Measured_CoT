@@ -2,6 +2,10 @@ function [angular_velocity] = user_input_velocity(normalized_time, Angular_Orien
 
 
 fig = figure;
+        subplot(2, 1, 1)
+        polarplot(normalized_time, Angular_Orientation);
+        title('Anglular Orientation vs Time')
+        subplot(2, 1, 2)
         plot(normalized_time, Angular_Orientation);
         title('Anglular Orientation vs Time')
         xlabel('time')
@@ -11,7 +15,7 @@ fig = figure;
     dcm_obj = datacursormode(fig);
     
     % Wait while the user to click
-    fprintf('Select one point, then shift click for a second point further down, then press "Enter"')
+    fprintf('Select one point, then shift click for a second point further down, then press "Enter"\n')
     pause
     
     % Export cursor to workspace
@@ -33,6 +37,6 @@ fig = figure;
 user_Beginning = Frames(1);
 user_End = Frames(end);
 
-angular_velocity = (orientation(user_End) - orientation(user_Beginning))/(time(user_End) - time(user_Beginning));
+angular_velocity = (Angular_Orientation(user_End) - Angular_Orientation(user_Beginning))/(normalized_time(user_End) - normalized_time(user_Beginning));
 
 end
