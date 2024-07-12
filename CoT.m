@@ -6,7 +6,7 @@ format compact
 
 %{
     Jack Vranicar
-    7/8/24
+    7/12/24
     jjv20@fsu.edu
 
     This script calculates cost of transport for a trajectory ran on the
@@ -17,13 +17,23 @@ format compact
     functions run a trajectory on the CISCOR boom and record various motor
     parameters.
 
-    Outputs: This script outputs: electrical power, mechanical power, and
+    Outputs: This script outputs: electrical power and
     cost of transport.
+
+    **The funciton encoder_interpreter relies on a piece of python code
+    being wrong for the boom encoder.  If this has been fixed, you'll need
+    to remove the correction that is made in that function. If not, your
+    angles will not be calculated correctly.  More details are in the
+    function**
 
 %}
 
 %% Power From I*V
 
+%{
+    Here, the bus current and bus voltage are taken to be parameters of the
+    DC power being sent to the motor driver.
+%}
 current_1 = motor_data.bus_current(:,1);
 current_2 = motor_data.bus_current(:,2);
 
@@ -34,7 +44,9 @@ voltage_2 = motor_data.bus_voltage(:,2);
 Power_1_electrical = current_1 .* voltage_1;
 Power_2_electrical = current_2 .*voltage_2;
 
-%% Average Velocity
+Power_total_electrical = Power_1_electrical + Power_2_electrical;
+
+%% Caculating d_Theta about the vertical axis
 
 %Orientation is in pulses!
 orientation = boom_data.orientation; 
@@ -51,6 +63,7 @@ normalized_time = user_time - user_time(1);
 %Angular velocity in rad/s
 Angular_Velocity = user_input_velocity(normalized_time, Angular_Orientation);
 
+%Linear velocity is in m/s
 boom_radius = 1.14; %[m]
 linear_velocity = Angular_Velocity * boom_radius;
 
@@ -61,8 +74,6 @@ linear_velocity = Angular_Velocity * boom_radius;
 mass_total = 1.7982; %mass in kg of the hip and foot assembly.
 g = 9.81; %[m/s/s]
 
-Power_total_electrical = Power_1_electrical + Power_2_electrical;
-
 Cost = mean(Power_total_electrical)/((mass_total)*g*abs(linear_velocity));
 
-fprintf("The cost is %f \n\n", Cost)
+fprintf("Assuming no mechanical losses, the cost is %f \n\n", Cost)

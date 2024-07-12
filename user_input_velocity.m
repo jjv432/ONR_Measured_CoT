@@ -1,6 +1,12 @@
 function [angular_velocity] = user_input_velocity(normalized_time, Angular_Orientation)
 
+%{
 
+    This allows the user to pick the starting and ending positions of the
+    robot.  This ensures that any recorded time that is spent in an idle
+    state is not used in the calculations for cost.
+
+%}
 fig = figure;
     subplot(2, 1, 1)
     polarplot(normalized_time, Angular_Orientation);
