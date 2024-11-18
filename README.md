@@ -14,3 +14,7 @@ Outputs: This script outputs: electrical power and cost of transport.
 ## encoder_interpreter.m
 
 This function outputs the angular orientation of the boom given the output of the boom.
+
+## user_input_velocity.m
+
+This function allows the user to select beginning and end points for the trial to avoid using idle time in CoT calculations.
